@@ -39,3 +39,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+/lib/generated/prisma
+
+# video source material (too large for git, not needed for the app)
+*.mp4
+/frames/
+/frames2/

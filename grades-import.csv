@@ -1,0 +1,30 @@
+code,substrate,coatingType,description,isoMaterials,applications,conditions,advantages,disadvantages,vcMin,vcMax
+IC808,Carbide,PVD,Hard substrate grade for milling steel. High wear resistance at moderate feeds.,P;M,Milling,Stable;Dry,High wear resistance;Hard substrate;Good for finishing,Sensitive to high feed;Chipping at interrupted cuts,150,350
+IC830,Carbide,PVD,Tough substrate grade for milling. Suitable for unstable conditions and high feeds.,P;M,Milling,Unstable;Wet;Interrupted,High fracture toughness;Good for interrupted cuts;High feed capability,Lower wear resistance vs IC808,100,280
+IC810,Carbide,PVD,Medium-tough substrate. Versatile grade for milling steel and cast iron at high feeds.,P;K,Milling,Unstable;Wet;Interrupted,High fracture resistance;Versatile;Good for cast iron wet,Lower wear resistance,80,250
+IC5600,Carbide,CVD,Hard substrate CVD grade for milling steel. High speed finishing.,P,Milling,Stable;Dry,Very high wear resistance;High speed capability;Hard substrate,Brittle;Not for interrupted cuts,200,400
+IC5400,Carbide,CVD,Tough substrate CVD grade for milling steel.,P,Milling,Unstable;Wet,Good toughness;CVD coating,Lower speed than IC5600,120,280
+IC5100,Carbide,CVD,CVD grade for cast iron milling. High wear resistance in dry conditions.,K,Milling,Stable;Dry,High wear resistance on cast iron;High speed,Poor fracture resistance in wet/interrupted;Not for GGG50 wet,200,400
+IC845,Carbide,PVD,Very tough substrate. For severe interrupted cuts and unstable conditions.,P;M,Milling,Unstable;Interrupted;Vibration,Highest fracture toughness;Absorbs vibration,Lower wear resistance;Lower speed,80,200
+IC328,Carbide,PVD,Tough substrate PVD grade. High feed milling of steel and stainless.,P;M,Milling,Unstable;High feed,Good toughness;High feed;Good for stainless,Lower wear resistance vs IC808,100,260
+IC5500,Carbide,CVD,CVD grade for ISO M milling. High speed.,M,Milling,Stable,High speed CVD;Wear resistant,Less tough,150,350
+IC5820,Carbide,CVD,CVD grade for ISO M milling. Medium speed/feed balance.,M,Milling,Stable;Unstable,Good CVD wear resistance;Versatile,Medium toughness,120,300
+IC882,Carbide,PVD,High feed PVD grade for ISO M milling. Highest feed capability in the M range.,M,Milling,High feed;Unstable,Highest feed rate;Tough substrate,Lower speed,80,200
+IC840,Carbide,PVD,PVD grade optimized for ISO S (titanium and nickel alloys) milling.,S,Milling,Wet;Low speed,Best for titanium alloys;Good for Inconel;Low cutting forces,Not for steel at high speed,30,80
+IC716,Carbide,PVD,General milling grade. Not recommended (NPA) for ISO S materials.,P;M,Milling,Stable,General purpose,NPA for titanium;NPA for Inconel 718,100,300
+IC807,Carbide,PVD,Hard substrate turning grade for steel. PVD without Co-enrich layer.,P,Turning,Stable;Finishing,Hard substrate;Good wear resistance;Finishing,Less tough than IC830,180,400
+IC907,Carbide,PVD,Hard substrate turning grade. Similar to IC807 for steel finishing.,P,Turning;Drilling,Stable,Hard substrate;PVD;Wear resistant,Not for interrupted cuts,180,400
+IC8150,Carbide,CVD,Advanced CVD turning grade with oriented coating grains and Co-enrich layer. Outperforms competitors.,P,Turning,Stable;Wet,Superior wear resistance;Oriented CVD grains;Co-enriched substrate;Best in class,Less tough than PVD grades,150,350
+IC8250,Carbide,CVD,CVD turning grade for steel with Co-enrich layer.,P,Turning,Stable;Wet,Good wear resistance;Co-enrich layer,Less tough,130,320
+IC8350,Carbide,CVD,CVD turning grade for steel. Slightly tougher than IC8250.,P,Turning,Stable;Slightly unstable,CVD coating;Co-enrich;Versatile,Medium toughness,120,300
+IC806,Carbide,PVD,PVD turning grade for ISO S (nickel alloys and titanium). Benchmark grade.,S,Turning,Wet;Low speed,Good for Inconel 718;Good for Ti6Al4V;PVD,Replaced by IC1017 for Inconel,50,100
+IC1017,Carbide,PVD,New generation PVD grade for turning Inconel alloys. 159% tool life vs IC806 on Inconel 718.,S,Turning,Wet,Best for Inconel 718;High wear resistance;New generation,NPA status (new product announcement),50,100
+IC804,Carbide,PVD,High wear resistance turning grade for ISO S. Less tough than IC830.,S,Turning,Stable;Finishing,Highest wear resistance for ISO S,Low fracture toughness,60,120
+IC6015,Carbide,PVD,Medium turning grade for ISO S. Between IC806 and IC830 in toughness.,S,Turning,Stable;Semi-stable,Balanced wear and toughness for ISO S,Medium performance,50,100
+IC5010,Carbide,CVD,Turning grade for cast iron (ISO K). For interrupted cuts on GGG50.,K,Turning,Interrupted;Wet,High fracture resistance for cast iron;Asymmetric honing,Lower wear resistance,150,350
+IC908,Carbide,PVD,Main drilling grade. PVD TiAlN nano-multilayer structure. High chipping resistance.,P;M;K,Drilling,Wet;Through-hole,High chipping resistance;Nano-nano multilayer;Versatile;Best for most materials,Not optimized for carbon steel,80,160
+IC948,Carbide,PVD,Specialized drilling grade for carbon steel with new geometry.,P,Drilling,Wet,Optimized for carbon steel;New geometry;Long tool life on carbon steel,Less versatile than IC908,100,180
+IC608,Carbide,PVD,Endmill grade with high fracture resistance. For stainless steel endmilling.,M,Endmilling,Wet;Stable,High fracture resistance;Good for stainless 304L,Less wear resistant than IC900,60,120
+IC900,Carbide,PVD,Standard endmill grade.,P;M,Endmilling,Stable,General purpose endmilling,Lower fracture resistance vs IC608,80,160
+IC602,Carbide,PVD,Multi-Master grade for hardened steel. 221% tool life vs IC903 on D2 60-64HRC.,H,Endmilling,Dry;Air,Best for hardened steel D2;High coating fracture resistance;Multi-Master system,For hardened materials only,120,200
+IC903,Carbide,PVD,Older Multi-Master endmill grade for hardened steel.,H,Endmilling,Dry,General hardened steel,Replaced by IC602,100,160

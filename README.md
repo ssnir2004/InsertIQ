@@ -1,36 +1,88 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# InsertIQ
 
-## Getting Started
+אפליקציית למידה למוצרי Iscar — גריידים, שימות, והתאמה לאפליקציה.
 
-First, run the development server:
+## Stack
+
+- **Next.js 14** (App Router, TypeScript)
+- **Prisma 6** + **PostgreSQL** (Neon.tech)
+- **Tailwind CSS** + **shadcn/ui**
+
+---
+
+## פיתוח מקומי
+
+### 1. צור בסיס נתונים חינמי ב-Neon.tech
+
+1. כנס ל-[neon.tech](https://neon.tech) → New Project
+2. העתק את ה-Connection String מ-Connection Details
+
+### 2. הגדר משתני סביבה
+
+ערוך את `.env.local`:
+```
+DATABASE_URL=postgresql://user:password@host/dbname?sslmode=require
+```
+
+### 3. הרץ Migrations
+
+```bash
+npx prisma migrate dev --name init
+```
+
+### 4. הפעל שרת פיתוח
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+פתח `http://localhost:3000`
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## פריסה ל-Render.com
 
-## Learn More
+1. Push לGitHub
+2. Render → New Web Service → connect repo
+3. **Build Command:** `npm install && npx prisma generate && npm run build`
+4. **Start Command:** `npm start`
+5. **Environment Variable:** `DATABASE_URL` = חיבור Neon
+6. **Pre-deploy:** `npx prisma migrate deploy`
 
-To learn more about Next.js, take a look at the following resources:
+### DNS — Subdomain
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+ב-Cloudflare/DNS provider שלך הוסף:
+```
+CNAME  insertiq  →  <app-name>.onrender.com
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+האפליקציה תהיה זמינה ב: `https://insertiq.rentflows.work`
 
-## Deploy on Vercel
+---
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## מבנה האפליקציה
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+/                    — Dashboard עם סטטיסטיקות
+/admin/grades        — ניהול גריידים
+/admin/inserts       — ניהול שימות
+/admin/import        — ייבוא CSV מרוכז
+/learn/quiz          — חידון תרחיש (בחר גרייד לפי אפליקציה+חומר)
+/learn/flashcards    — כרטיסיות (גרייד → נחש תכונות)
+/learn/match         — התאמה הפוכה (חומר+תנאים → גרייד)
+```
+
+## פורמט CSV לייבוא
+
+### גריידים (`grades-template.csv`)
+```
+code,substrate,coatingType,isoMaterials,applications,conditions,advantages,disadvantages,vcMin,vcMax
+IC908,Carbide,CVD,P;M,Turning;Milling,Stable;Unstable,Wear resistant,Brittle,100,300
+```
+ערכים מרובים מופרדים ב-`;`
+
+### שימות (`inserts-template.csv`)
+```
+code,application,geometry,gradeId,materials,conditions,advantages,disadvantages
+APMT1135PDER,Milling,Positive rake 35deg,<grade-id>,P20;Stainless,Stable,Low forces,Not for interrupted
+```

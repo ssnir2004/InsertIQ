@@ -1,0 +1,49 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Grade {
+  id            String   @id @default(cuid())
+  code          String   @unique
+  substrate     String
+  coatingType   String?
+  description   String?
+  advantages    String[]
+  disadvantages String[]
+  isoMaterials  String[]
+  conditions    String[]
+  applications  String[]
+  vcMin         Float?
+  vcMax         Float?
+  inserts       Insert[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Insert {
+  id            String   @id @default(cuid())
+  code          String   @unique
+  application   String
+  geometry      String?
+  gradeId       String
+  grade         Grade    @relation(fields: [gradeId], references: [id], onDelete: Cascade)
+  advantages    String[]
+  disadvantages String[]
+  materials     String[]
+  conditions    String[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model QuizResult {
+  id        String   @id @default(cuid())
+  score     Int
+  total     Int
+  mode      String
+  createdAt DateTime @default(now())
+}

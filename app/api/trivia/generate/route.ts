@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
   const isPdf = file.name.toLowerCase().endsWith(".pdf");
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
   let contentParts: Part[];
 

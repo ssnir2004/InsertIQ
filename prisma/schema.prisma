@@ -47,3 +47,25 @@ model QuizResult {
   mode      String
   createdAt DateTime @default(now())
 }
+
+model TriviaCategory {
+  id          String          @id @default(cuid())
+  name        String          @unique
+  description String?
+  content     String?
+  questions   TriviaQuestion[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+}
+
+model TriviaQuestion {
+  id          String         @id @default(cuid())
+  category    TriviaCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  categoryId  String
+  question    String
+  options     String[]
+  answer      Int
+  explanation String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+}

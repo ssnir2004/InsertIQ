@@ -7,19 +7,23 @@ import prisma from "@/lib/prisma";
 
 async function getStats() {
   try {
-    const [grades, inserts, quizResults] = await Promise.all([
+    const [grades, inserts, quizResults, triviaCategories] = await Promise.all([
       prisma.grade.count(),
       prisma.insert.count(),
       prisma.quizResult.findMany({ orderBy: { createdAt: "desc" }, take: 5 }),
+      prisma.triviaCategory.findMany({
+        orderBy: { name: "asc" },
+        include: { _count: { select: { questions: true } } },
+      }),
     ]);
-    return { grades, inserts, quizResults };
+    return { grades, inserts, quizResults, triviaCategories };
   } catch {
-    return { grades: 0, inserts: 0, quizResults: [] as { id: string; score: number; total: number; mode: string }[] };
+    return { grades: 0, inserts: 0, quizResults: [] as { id: string; score: number; total: number; mode: string }[], triviaCategories: [] };
   }
 }
 
 export default async function Home() {
-  const { grades, inserts, quizResults } = await getStats();
+  const { grades, inserts, quizResults, triviaCategories } = await getStats();
 
   return (
     <div className="space-y-8">
@@ -82,6 +86,27 @@ export default async function Home() {
           ))}
         </div>
       </div>
+
+      {triviaCategories.length > 0 && (
+        <div>
+          <h2 className="text-lg font-semibold mb-3">טריוויה לפי נושאים</h2>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {(triviaCategories as { id: string; name: string; description?: string | null; _count: { questions: number } }[]).map((cat) => (
+              <Link key={cat.id} href={`/trivia/study/${cat.id}`}>
+                <Card className="hover:border-primary transition-colors cursor-pointer h-full">
+                  <CardContent className="pt-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="font-medium">{cat.name}</p>
+                      <Badge variant="secondary" className="text-xs shrink-0">{cat._count.questions} שאלות</Badge>
+                    </div>
+                    {cat.description && <p className="text-sm text-muted-foreground mt-1">{cat.description}</p>}
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {quizResults.length > 0 && (
         <div>

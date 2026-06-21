@@ -39,6 +39,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <Link href="/learn/match" className="text-muted-foreground hover:text-foreground transition-colors">
                 התאמה
               </Link>
+              <span className="text-border">|</span>
+              <Link href="/trivia" className="text-muted-foreground hover:text-foreground transition-colors font-medium">
+                טריוויה
+              </Link>
+              <Link href="/admin/trivia" className="text-muted-foreground hover:text-foreground transition-colors">
+                ניהול טריוויה
+              </Link>
             </div>
           </div>
         </nav>

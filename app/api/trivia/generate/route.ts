@@ -92,10 +92,19 @@ export async function POST(req: NextRequest) {
   try {
     const result = await model.generateContent(contentParts);
     const responseText = result.response.text().trim();
-    const jsonStr = responseText.replace(/^```json\s*/i, "").replace(/\s*```$/, "");
-    ({ questions } = JSON.parse(jsonStr));
-  } catch {
-    return NextResponse.json({ error: "שגיאה ביצירת השאלות מה-AI. נסה שוב." }, { status: 500 });
+    // Strip any markdown code fences
+    const jsonStr = responseText
+      .replace(/^```(?:json)?\s*/i, "")
+      .replace(/\s*```\s*$/, "")
+      .trim();
+    // Find the JSON object even if there's surrounding text
+    const match = jsonStr.match(/\{[\s\S]*\}/);
+    if (!match) throw new Error(`No JSON found in response: ${jsonStr.slice(0, 200)}`);
+    ({ questions } = JSON.parse(match[0]));
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("Gemini generate error:", msg);
+    return NextResponse.json({ error: `שגיאה ביצירת השאלות: ${msg.slice(0, 200)}` }, { status: 500 });
   }
 
   if (!Array.isArray(questions) || questions.length === 0) {

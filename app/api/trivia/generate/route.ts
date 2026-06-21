@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
   const isPdf = file.name.toLowerCase().endsWith(".pdf");
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+  const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
   let contentParts: Part[];
 
@@ -104,6 +104,9 @@ export async function POST(req: NextRequest) {
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error("Gemini generate error:", msg);
+    if (msg.includes("429")) {
+      return NextResponse.json({ error: "הגעת למגבלת הבקשות של Gemini. המתן דקה ונסה שוב." }, { status: 429 });
+    }
     return NextResponse.json({ error: `שגיאה ביצירת השאלות: ${msg.slice(0, 200)}` }, { status: 500 });
   }
 

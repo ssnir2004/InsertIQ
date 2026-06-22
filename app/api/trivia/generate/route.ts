@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Try models in order — each has a separate quota pool
-  const MODELS = ["gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-1.5-flash"];
+  const MODELS = ["gemini-2.0-flash", "gemini-2.5-flash", "gemini-2.0-flash-lite"];
   const genAI = new GoogleGenerativeAI(apiKey);
 
   let questions: Array<{ question: string; options: string[]; answer: number; explanation?: string }> = [];

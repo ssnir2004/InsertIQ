@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI } from "@google/genai";
 import officeparser from "officeparser";
 import { extractText, getDocumentProxy } from "unpdf";
 import prisma from "@/lib/prisma";
@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
 
   // Try models in order — each has a separate quota pool
   const MODELS = ["gemini-2.0-flash", "gemini-2.5-flash", "gemini-2.0-flash-lite"];
-  const genAI = new GoogleGenerativeAI(apiKey);
+  const ai = new GoogleGenAI({ apiKey });
 
   let questions: Array<{ question: string; options: string[]; answer: number; explanation?: string }> = [];
   let lastErr = "";
@@ -99,9 +99,11 @@ export async function POST(req: NextRequest) {
 
   for (const modelName of MODELS) {
     try {
-      const model = genAI.getGenerativeModel({ model: modelName });
-      const result = await model.generateContent(buildPrompt(text, questionCount));
-      const responseText = result.response.text().trim();
+      const result = await ai.models.generateContent({
+        model: modelName,
+        contents: buildPrompt(text, questionCount),
+      });
+      const responseText = (result.text ?? "").trim();
       const jsonStr = responseText
         .replace(/^```(?:json)?\s*/i, "")
         .replace(/\s*```\s*$/, "")

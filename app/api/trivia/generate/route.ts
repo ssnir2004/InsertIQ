@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import officeparser from "officeparser";
-// @ts-ignore — pdfjs-dist legacy build, no matching .d.ts for this path
-import { getDocument, GlobalWorkerOptions } from "pdfjs-dist/legacy/build/pdf.mjs";
+import { extractText, getDocumentProxy } from "unpdf";
 import prisma from "@/lib/prisma";
 import { writeFile, unlink } from "fs/promises";
 import { join } from "path";
@@ -65,16 +64,9 @@ export async function POST(req: NextRequest) {
   let text: string;
   if (isPdf) {
     try {
-      GlobalWorkerOptions.workerSrc = "";
-      const loadingTask = getDocument({ data: new Uint8Array(buffer) });
-      const pdfDoc = await loadingTask.promise;
-      const pages: string[] = [];
-      for (let i = 1; i <= pdfDoc.numPages; i++) {
-        const page = await pdfDoc.getPage(i);
-        const content = await page.getTextContent();
-        pages.push(content.items.map((item) => ("str" in item ? item.str : "")).join(" "));
-      }
-      text = pages.join("\n");
+      const pdf = await getDocumentProxy(new Uint8Array(buffer));
+      const { text: extracted } = await extractText(pdf, { mergePages: true });
+      text = extracted;
     } catch (pdfErr) {
       const pdfMsg = pdfErr instanceof Error ? pdfErr.message : String(pdfErr);
       console.error("pdfjs error:", pdfMsg);

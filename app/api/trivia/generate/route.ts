@@ -46,46 +46,65 @@ export async function POST(req: NextRequest) {
   }
 
   const file = formData.get("file") as File | null;
+  const url = formData.get("url") as string | null;
   const categoryId = formData.get("categoryId") as string | null;
   const newCategoryName = formData.get("newCategoryName") as string | null;
   const questionCount = Math.min(parseInt(formData.get("questionCount") as string) || 10, 30);
 
-  if (!file) return NextResponse.json({ error: "לא נבחר קובץ" }, { status: 400 });
+  if (!file && !url?.trim()) return NextResponse.json({ error: "נא לבחור קובץ או להזין קישור" }, { status: 400 });
   if (!categoryId && !newCategoryName?.trim()) {
     return NextResponse.json({ error: "נא לבחור נושא או ליצור חדש" }, { status: 400 });
   }
 
-  const bytes = await file.arrayBuffer();
-  const buffer = Buffer.from(bytes);
-  const isPdf = file.name.toLowerCase().endsWith(".pdf");
-
-  // Extract text from file
+  // Extract text from source
   let text: string;
-  if (isPdf) {
+
+  if (url?.trim()) {
     try {
-      const pdf = await getDocumentProxy(new Uint8Array(buffer));
-      const { text: extracted } = await extractText(pdf, { mergePages: true });
-      text = extracted;
-    } catch (pdfErr) {
-      const pdfMsg = pdfErr instanceof Error ? pdfErr.message : String(pdfErr);
-      console.error("pdfjs error:", pdfMsg);
-      return NextResponse.json({ error: `שגיאת PDF: ${pdfMsg.slice(0, 200)}` }, { status: 400 });
+      const pageRes = await fetch(url.trim(), { headers: { "User-Agent": "Mozilla/5.0" } });
+      if (!pageRes.ok) throw new Error(`HTTP ${pageRes.status}`);
+      const html = await pageRes.text();
+      text = html
+        .replace(/<script[\s\S]*?<\/script>/gi, "")
+        .replace(/<style[\s\S]*?<\/style>/gi, "")
+        .replace(/<[^>]+>/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+    } catch (urlErr) {
+      const msg = urlErr instanceof Error ? urlErr.message : String(urlErr);
+      return NextResponse.json({ error: `לא ניתן לאחזר את הקישור: ${msg.slice(0, 150)}` }, { status: 400 });
     }
   } else {
-    const tmpPath = join(tmpdir(), `trivia_${Date.now()}_${file.name}`);
-    await writeFile(tmpPath, buffer);
-    try {
-      text = String(await officeparser.parseOffice(tmpPath));
-    } catch {
-      await unlink(tmpPath).catch(() => {});
-      return NextResponse.json({ error: "לא ניתן לקרוא את הקובץ. וודא שהוא PPTX תקין." }, { status: 400 });
-    } finally {
-      await unlink(tmpPath).catch(() => {});
+    const bytes = await file!.arrayBuffer();
+    const buffer = Buffer.from(bytes);
+    const isPdf = file!.name.toLowerCase().endsWith(".pdf");
+
+    if (isPdf) {
+      try {
+        const pdf = await getDocumentProxy(new Uint8Array(buffer));
+        const { text: extracted } = await extractText(pdf, { mergePages: true });
+        text = extracted;
+      } catch (pdfErr) {
+        const pdfMsg = pdfErr instanceof Error ? pdfErr.message : String(pdfErr);
+        console.error("pdfjs error:", pdfMsg);
+        return NextResponse.json({ error: `שגיאת PDF: ${pdfMsg.slice(0, 200)}` }, { status: 400 });
+      }
+    } else {
+      const tmpPath = join(tmpdir(), `trivia_${Date.now()}_${file!.name}`);
+      await writeFile(tmpPath, buffer);
+      try {
+        text = String(await officeparser.parseOffice(tmpPath));
+      } catch {
+        await unlink(tmpPath).catch(() => {});
+        return NextResponse.json({ error: "לא ניתן לקרוא את הקובץ. וודא שהוא PPTX תקין." }, { status: 400 });
+      } finally {
+        await unlink(tmpPath).catch(() => {});
+      }
     }
   }
 
   if (!text || text.trim().length < 50) {
-    return NextResponse.json({ error: "הקובץ ריק מדי — לא נמצא מספיק טקסט" }, { status: 400 });
+    return NextResponse.json({ error: "המקור ריק מדי — לא נמצא מספיק טקסט" }, { status: 400 });
   }
 
   // Generate questions with Groq (llama-3.3-70b, free tier)
@@ -102,6 +121,8 @@ export async function POST(req: NextRequest) {
         model: "llama-3.3-70b-versatile",
         messages: [{ role: "user", content: buildPrompt(text, questionCount) }],
         temperature: 0.7,
+        max_tokens: 8192,
+        response_format: { type: "json_object" },
       }),
     });
     const json = await res.json();

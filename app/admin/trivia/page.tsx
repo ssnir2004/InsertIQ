@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Pencil, Trash2, Plus, ChevronDown, ChevronUp, Sparkles, Upload } from "lucide-react";
+import { Pencil, Trash2, Plus, ChevronDown, ChevronUp, Sparkles, Upload, Link } from "lucide-react";
 
 interface Category {
   id: string;
@@ -141,7 +141,9 @@ export default function TriviaAdminPage() {
 
   // AI generation state
   const [aiDialog, setAiDialog] = useState(false);
+  const [genInputMode, setGenInputMode] = useState<"file" | "url">("file");
   const [genFile, setGenFile] = useState<File | null>(null);
+  const [genUrl, setGenUrl] = useState("");
   const [genCategoryMode, setGenCategoryMode] = useState<"existing" | "new">("existing");
   const [genCategoryId, setGenCategoryId] = useState("");
   const [genNewName, setGenNewName] = useState("");
@@ -226,6 +228,8 @@ export default function TriviaAdminPage() {
 
   const openAiDialog = () => {
     setGenFile(null);
+    setGenUrl("");
+    setGenInputMode("file");
     setGenCategoryMode("existing");
     setGenCategoryId(categories[0]?.id ?? "");
     setGenNewName("");
@@ -235,11 +239,14 @@ export default function TriviaAdminPage() {
   };
 
   const generateWithAI = async () => {
-    if (!genFile) return;
     setGenerating(true);
     setGenResult(null);
     const fd = new FormData();
-    fd.append("file", genFile);
+    if (genInputMode === "file" && genFile) {
+      fd.append("file", genFile);
+    } else if (genInputMode === "url" && genUrl.trim()) {
+      fd.append("url", genUrl.trim());
+    } else return;
     fd.append("questionCount", String(genCount));
     if (genCategoryMode === "existing") {
       fd.append("categoryId", genCategoryId);
@@ -386,28 +393,61 @@ export default function TriviaAdminPage() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-5">
-            {/* File upload */}
-            <div>
-              <Label>קובץ מצגת (PDF או PPTX)</Label>
-              <div
-                className="mt-1 border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:border-primary transition-colors"
-                onClick={() => fileInputRef.current?.click()}
+            {/* Input mode toggle */}
+            <div className="flex gap-1 p-1 bg-muted rounded-lg">
+              <button
+                className={`flex-1 flex items-center justify-center gap-2 py-1.5 rounded-md text-sm font-medium transition-colors ${genInputMode === "file" ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                onClick={() => setGenInputMode("file")}
               >
-                <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                {genFile ? (
-                  <p className="text-sm font-medium text-primary">{genFile.name}</p>
-                ) : (
-                  <p className="text-sm text-muted-foreground">לחץ לבחירת קובץ PDF או PPTX</p>
-                )}
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".pdf,.pptx,.ppt"
-                  className="hidden"
-                  onChange={(e) => setGenFile(e.target.files?.[0] ?? null)}
-                />
-              </div>
+                <Upload className="h-4 w-4" /> קובץ
+              </button>
+              <button
+                className={`flex-1 flex items-center justify-center gap-2 py-1.5 rounded-md text-sm font-medium transition-colors ${genInputMode === "url" ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                onClick={() => setGenInputMode("url")}
+              >
+                <Link className="h-4 w-4" /> קישור
+              </button>
             </div>
+
+            {/* File upload */}
+            {genInputMode === "file" && (
+              <div>
+                <Label>קובץ מצגת (PDF או PPTX)</Label>
+                <div
+                  className="mt-1 border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:border-primary transition-colors"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                  {genFile ? (
+                    <p className="text-sm font-medium text-primary">{genFile.name}</p>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">לחץ לבחירת קובץ PDF או PPTX</p>
+                  )}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".pdf,.pptx,.ppt"
+                    className="hidden"
+                    onChange={(e) => setGenFile(e.target.files?.[0] ?? null)}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* URL input */}
+            {genInputMode === "url" && (
+              <div>
+                <Label>קישור לדף אינטרנט</Label>
+                <Input
+                  className="mt-1"
+                  placeholder="https://..."
+                  value={genUrl}
+                  onChange={(e) => setGenUrl(e.target.value)}
+                  dir="ltr"
+                />
+                <p className="text-xs text-muted-foreground mt-1">הקישור יאוחזר ויחולץ ממנו טקסט לצורך יצירת שאלות</p>
+              </div>
+            )}
 
             {/* Category */}
             <div>
@@ -480,7 +520,8 @@ export default function TriviaAdminPage() {
                 onClick={generateWithAI}
                 disabled={
                   generating ||
-                  !genFile ||
+                  (genInputMode === "file" && !genFile) ||
+                  (genInputMode === "url" && !genUrl.trim()) ||
                   (genCategoryMode === "existing" && !genCategoryId) ||
                   (genCategoryMode === "new" && !genNewName.trim())
                 }

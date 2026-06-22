@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { GoogleGenAI } from "@google/genai";
 import officeparser from "officeparser";
 import { extractText, getDocumentProxy } from "unpdf";
 import prisma from "@/lib/prisma";
@@ -89,9 +88,28 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "הקובץ ריק מדי — לא נמצא מספיק טקסט" }, { status: 400 });
   }
 
+  // AQ. keys use Bearer auth; AIza... keys use x-goog-api-key header
+  const isAuthKey = apiKey.startsWith("AQ.");
+  const authHeaders: Record<string, string> = isAuthKey
+    ? { Authorization: `Bearer ${apiKey}` }
+    : { "x-goog-api-key": apiKey };
+
+  async function callGemini(modelName: string, prompt: string): Promise<string> {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders },
+        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+      }
+    );
+    const json = await res.json();
+    if (!res.ok) throw new Error(JSON.stringify(json).slice(0, 300));
+    return json.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+  }
+
   // Try models in order — each has a separate quota pool
   const MODELS = ["gemini-2.0-flash", "gemini-2.5-flash", "gemini-2.0-flash-lite"];
-  const ai = new GoogleGenAI({ apiKey });
 
   let questions: Array<{ question: string; options: string[]; answer: number; explanation?: string }> = [];
   let lastErr = "";
@@ -99,11 +117,7 @@ export async function POST(req: NextRequest) {
 
   for (const modelName of MODELS) {
     try {
-      const result = await ai.models.generateContent({
-        model: modelName,
-        contents: buildPrompt(text, questionCount),
-      });
-      const responseText = (result.text ?? "").trim();
+      const responseText = (await callGemini(modelName, buildPrompt(text, questionCount))).trim();
       const jsonStr = responseText
         .replace(/^```(?:json)?\s*/i, "")
         .replace(/\s*```\s*$/, "")
@@ -116,7 +130,7 @@ export async function POST(req: NextRequest) {
     } catch (e) {
       lastErr = e instanceof Error ? e.message : String(e);
       console.error(`Gemini [${modelName}] error:`, lastErr);
-      if (!lastErr.includes("429")) break; // non-429 → no point trying other models
+      if (!lastErr.includes("429")) break;
     }
   }
 

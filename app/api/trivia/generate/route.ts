@@ -33,9 +33,9 @@ ${text.slice(0, MAX_TEXT)}`;
 }
 
 export async function POST(req: NextRequest) {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey || apiKey === "your_gemini_api_key_here") {
-    return NextResponse.json({ error: "GEMINI_API_KEY לא מוגדר" }, { status: 500 });
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) {
+    return NextResponse.json({ error: "GROQ_API_KEY לא מוגדר" }, { status: 500 });
   }
 
   let formData: FormData;
@@ -88,60 +88,42 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "הקובץ ריק מדי — לא נמצא מספיק טקסט" }, { status: 400 });
   }
 
-  // AQ. keys use Bearer auth; AIza... keys use x-goog-api-key header
-  const isAuthKey = apiKey.startsWith("AQ.");
-  const authHeaders: Record<string, string> = isAuthKey
-    ? { Authorization: `Bearer ${apiKey}` }
-    : { "x-goog-api-key": apiKey };
-
-  async function callGemini(modelName: string, prompt: string): Promise<string> {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...authHeaders },
-        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
-      }
-    );
-    const json = await res.json();
-    if (!res.ok) throw new Error(JSON.stringify(json).slice(0, 300));
-    return json.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
-  }
-
-  // Try models in order — each has a separate quota pool
-  const MODELS = ["gemini-2.0-flash", "gemini-2.5-flash", "gemini-2.0-flash-lite"];
-
+  // Generate questions with Groq (llama-3.3-70b, free tier)
   let questions: Array<{ question: string; options: string[]; answer: number; explanation?: string }> = [];
-  let lastErr = "";
-  let succeeded = false;
 
-  for (const modelName of MODELS) {
-    try {
-      const responseText = (await callGemini(modelName, buildPrompt(text, questionCount))).trim();
-      const jsonStr = responseText
-        .replace(/^```(?:json)?\s*/i, "")
-        .replace(/\s*```\s*$/, "")
-        .trim();
-      const match = jsonStr.match(/\{[\s\S]*\}/);
-      if (!match) throw new Error(`No JSON in response: ${jsonStr.slice(0, 200)}`);
-      ({ questions } = JSON.parse(match[0]));
-      succeeded = true;
-      break;
-    } catch (e) {
-      lastErr = e instanceof Error ? e.message : String(e);
-      console.error(`Gemini [${modelName}] error:`, lastErr);
-      if (!lastErr.includes("429")) break;
+  try {
+    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: "llama-3.3-70b-versatile",
+        messages: [{ role: "user", content: buildPrompt(text, questionCount) }],
+        temperature: 0.7,
+      }),
+    });
+    const json = await res.json();
+    if (!res.ok) {
+      const errMsg = json?.error?.message ?? JSON.stringify(json).slice(0, 300);
+      if (res.status === 429) {
+        return NextResponse.json({ error: `מגבלת בקשות (429). המתן דקה ונסה שוב.` }, { status: 429 });
+      }
+      throw new Error(errMsg);
     }
-  }
-
-  if (!succeeded) {
-    if (lastErr.includes("429")) {
-      return NextResponse.json(
-        { error: `כל מודלי Gemini עמוסים כרגע. נסה שוב מאוחר יותר.\n(${lastErr.slice(0, 200)})` },
-        { status: 429 }
-      );
-    }
-    return NextResponse.json({ error: `שגיאה ביצירת השאלות: ${lastErr.slice(0, 300)}` }, { status: 500 });
+    const responseText = (json.choices?.[0]?.message?.content ?? "").trim();
+    const jsonStr = responseText
+      .replace(/^```(?:json)?\s*/i, "")
+      .replace(/\s*```\s*$/, "")
+      .trim();
+    const match = jsonStr.match(/\{[\s\S]*\}/);
+    if (!match) throw new Error(`No JSON in response: ${jsonStr.slice(0, 200)}`);
+    ({ questions } = JSON.parse(match[0]));
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("Groq error:", msg);
+    return NextResponse.json({ error: `שגיאה ביצירת השאלות: ${msg.slice(0, 300)}` }, { status: 500 });
   }
 
   if (!Array.isArray(questions) || questions.length === 0) {

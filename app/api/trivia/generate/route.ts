@@ -67,8 +67,10 @@ export async function POST(req: NextRequest) {
       const parser = new PDFParse({ data: buffer });
       const parsed = await parser.getText();
       text = parsed.text;
-    } catch {
-      return NextResponse.json({ error: "לא ניתן לקרוא את ה-PDF. וודא שהוא תקין." }, { status: 400 });
+    } catch (pdfErr) {
+      const pdfMsg = pdfErr instanceof Error ? pdfErr.message : String(pdfErr);
+      console.error("pdf-parse error:", pdfMsg);
+      return NextResponse.json({ error: `שגיאת PDF: ${pdfMsg.slice(0, 200)}` }, { status: 400 });
     }
   } else {
     const tmpPath = join(tmpdir(), `trivia_${Date.now()}_${file.name}`);

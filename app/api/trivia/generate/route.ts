@@ -89,16 +89,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "הקובץ ריק מדי — לא נמצא מספיק טקסט" }, { status: 400 });
   }
 
-  // Generate questions with Gemini (retry up to 3 times on 429)
+  // Try models in order — each has a separate quota pool
+  const MODELS = ["gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-1.5-flash"];
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
   let questions: Array<{ question: string; options: string[]; answer: number; explanation?: string }> = [];
   let lastErr = "";
   let succeeded = false;
 
-  for (let attempt = 1; attempt <= 3; attempt++) {
+  for (const modelName of MODELS) {
     try {
+      const model = genAI.getGenerativeModel({ model: modelName });
       const result = await model.generateContent(buildPrompt(text, questionCount));
       const responseText = result.response.text().trim();
       const jsonStr = responseText
@@ -112,19 +113,15 @@ export async function POST(req: NextRequest) {
       break;
     } catch (e) {
       lastErr = e instanceof Error ? e.message : String(e);
-      console.error(`Gemini attempt ${attempt} error:`, lastErr);
-      if (lastErr.includes("429") && attempt < 3) {
-        await new Promise((r) => setTimeout(r, attempt * 8000));
-      } else {
-        break;
-      }
+      console.error(`Gemini [${modelName}] error:`, lastErr);
+      if (!lastErr.includes("429")) break; // non-429 → no point trying other models
     }
   }
 
   if (!succeeded) {
     if (lastErr.includes("429")) {
       return NextResponse.json(
-        { error: "Gemini עמוס כרגע (429). נסה שוב בעוד כמה דקות." },
+        { error: `כל מודלי Gemini עמוסים כרגע. נסה שוב מאוחר יותר.\n(${lastErr.slice(0, 200)})` },
         { status: 429 }
       );
     }

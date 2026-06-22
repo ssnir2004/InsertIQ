@@ -150,6 +150,9 @@ export default function TriviaAdminPage() {
   const [genCount, setGenCount] = useState(10);
   const [generating, setGenerating] = useState(false);
   const [genResult, setGenResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const [reviewQuestions, setReviewQuestions] = useState<Question[] | null>(null);
+  const [reviewCategoryId, setReviewCategoryId] = useState<string>("");
+  const [editingReviewId, setEditingReviewId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const loadCategories = async () => {
@@ -226,6 +229,26 @@ export default function TriviaAdminPage() {
     loadCategories();
   };
 
+  const deleteReviewQuestion = async (id: string) => {
+    await fetch(`/api/trivia/questions/${id}`, { method: "DELETE" });
+    setReviewQuestions((prev) => prev?.filter((q) => q.id !== id) ?? null);
+    loadCategories();
+  };
+
+  const saveReviewQuestion = async (data: Omit<Question, "id">) => {
+    if (!editingReviewId) return;
+    await fetch(`/api/trivia/questions/${editingReviewId}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+      headers: { "Content-Type": "application/json" },
+    });
+    setReviewQuestions((prev) =>
+      prev?.map((q) => (q.id === editingReviewId ? { ...q, ...data } : q)) ?? null
+    );
+    setEditingReviewId(null);
+    if (expanded === reviewCategoryId) loadQuestions(reviewCategoryId);
+  };
+
   const openAiDialog = () => {
     setGenFile(null);
     setGenUrl("");
@@ -235,6 +258,9 @@ export default function TriviaAdminPage() {
     setGenNewName("");
     setGenCount(10);
     setGenResult(null);
+    setReviewQuestions(null);
+    setReviewCategoryId("");
+    setEditingReviewId(null);
     setAiDialog(true);
   };
 
@@ -256,11 +282,16 @@ export default function TriviaAdminPage() {
     const res = await fetch("/api/trivia/generate", { method: "POST", body: fd });
     const data = await res.json();
     if (res.ok) {
-      setGenResult({ ok: true, message: `✓ נוצרו ${data.count} שאלות בהצלחה!` });
+      const catId = data.categoryId;
+      setGenResult({ ok: true, message: `✓ נוצרו ${data.count} שאלות — בדוק וערוך לפי הצורך` });
       loadCategories();
-      if (genCategoryMode === "existing" && genCategoryId && expanded === genCategoryId) {
-        loadQuestions(genCategoryId);
-      }
+      if (expanded === catId) loadQuestions(catId);
+      // Load questions for review
+      const qRes = await fetch(`/api/trivia/questions?categoryId=${catId}`);
+      const allQs: Question[] = await qRes.json();
+      // Show only the newly generated ones (last data.count)
+      setReviewQuestions(allQs.slice(-data.count));
+      setReviewCategoryId(catId);
     } else {
       setGenResult({ ok: false, message: `שגיאה: ${data.error}` });
     }
@@ -385,7 +416,7 @@ export default function TriviaAdminPage() {
 
       {/* AI Generation Dialog */}
       <Dialog open={aiDialog} onOpenChange={(o) => !o && setAiDialog(false)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-purple-500" />
@@ -511,6 +542,48 @@ export default function TriviaAdminPage() {
               <p className={`text-sm font-medium rounded-md px-3 py-2 ${genResult.ok ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
                 {genResult.message}
               </p>
+            )}
+
+            {/* Review Questions */}
+            {reviewQuestions && reviewQuestions.length > 0 && (
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold">סקירת שאלות ({reviewQuestions.length})</Label>
+                <div className="max-h-72 overflow-y-auto space-y-2 pr-1">
+                  {reviewQuestions.map((q, idx) => (
+                    <div key={q.id} className="border rounded-lg p-3 space-y-2 bg-muted/30">
+                      {editingReviewId === q.id ? (
+                        <QuestionForm
+                          initial={q}
+                          categoryId={reviewCategoryId}
+                          onSave={saveReviewQuestion}
+                          onCancel={() => setEditingReviewId(null)}
+                        />
+                      ) : (
+                        <>
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="text-sm font-medium flex-1">{idx + 1}. {q.question}</p>
+                            <div className="flex gap-1 shrink-0">
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingReviewId(q.id)}>
+                                <Pencil className="h-3 w-3" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteReviewQuestion(q.id)}>
+                                <Trash2 className="h-3 w-3 text-destructive" />
+                              </Button>
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap gap-1">
+                            {q.options.map((opt, i) => (
+                              <span key={i} className={`text-xs px-2 py-0.5 rounded-full ${i === q.answer ? "bg-green-100 text-green-800 font-medium" : "bg-muted text-muted-foreground"}`}>
+                                {opt}
+                              </span>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
 
             {/* Actions */}

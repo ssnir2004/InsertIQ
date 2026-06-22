@@ -89,28 +89,46 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "הקובץ ריק מדי — לא נמצא מספיק טקסט" }, { status: 400 });
   }
 
-  // Generate questions with Gemini
+  // Generate questions with Gemini (retry up to 3 times on 429)
   const genAI = new GoogleGenerativeAI(apiKey);
   const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
-  let questions: Array<{ question: string; options: string[]; answer: number; explanation?: string }>;
-  try {
-    const result = await model.generateContent(buildPrompt(text, questionCount));
-    const responseText = result.response.text().trim();
-    const jsonStr = responseText
-      .replace(/^```(?:json)?\s*/i, "")
-      .replace(/\s*```\s*$/, "")
-      .trim();
-    const match = jsonStr.match(/\{[\s\S]*\}/);
-    if (!match) throw new Error(`No JSON in response: ${jsonStr.slice(0, 200)}`);
-    ({ questions } = JSON.parse(match[0]));
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    console.error("Gemini error:", msg);
-    if (msg.includes("429")) {
-      return NextResponse.json({ error: "הגעת למגבלת הבקשות של Gemini. המתן דקה ונסה שוב." }, { status: 429 });
+  let questions: Array<{ question: string; options: string[]; answer: number; explanation?: string }> = [];
+  let lastErr = "";
+  let succeeded = false;
+
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const result = await model.generateContent(buildPrompt(text, questionCount));
+      const responseText = result.response.text().trim();
+      const jsonStr = responseText
+        .replace(/^```(?:json)?\s*/i, "")
+        .replace(/\s*```\s*$/, "")
+        .trim();
+      const match = jsonStr.match(/\{[\s\S]*\}/);
+      if (!match) throw new Error(`No JSON in response: ${jsonStr.slice(0, 200)}`);
+      ({ questions } = JSON.parse(match[0]));
+      succeeded = true;
+      break;
+    } catch (e) {
+      lastErr = e instanceof Error ? e.message : String(e);
+      console.error(`Gemini attempt ${attempt} error:`, lastErr);
+      if (lastErr.includes("429") && attempt < 3) {
+        await new Promise((r) => setTimeout(r, attempt * 8000));
+      } else {
+        break;
+      }
     }
-    return NextResponse.json({ error: `שגיאה ביצירת השאלות: ${msg.slice(0, 200)}` }, { status: 500 });
+  }
+
+  if (!succeeded) {
+    if (lastErr.includes("429")) {
+      return NextResponse.json(
+        { error: "Gemini עמוס כרגע (429). נסה שוב בעוד כמה דקות." },
+        { status: 429 }
+      );
+    }
+    return NextResponse.json({ error: `שגיאה ביצירת השאלות: ${lastErr.slice(0, 300)}` }, { status: 500 });
   }
 
   if (!Array.isArray(questions) || questions.length === 0) {

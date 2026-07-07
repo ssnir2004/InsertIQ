@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Pencil, Trash2, Plus, ChevronDown, ChevronUp, Sparkles, Upload, Link } from "lucide-react";
+import { Pencil, Trash2, Plus, ChevronDown, ChevronUp, Sparkles, Upload, Link, Clipboard, X } from "lucide-react";
 
 interface Category {
   id: string;
@@ -141,13 +141,16 @@ export default function TriviaAdminPage() {
 
   // AI generation state
   const [aiDialog, setAiDialog] = useState(false);
-  const [genInputMode, setGenInputMode] = useState<"file" | "url">("file");
+  const [genInputMode, setGenInputMode] = useState<"file" | "url" | "image">("file");
   const [genFile, setGenFile] = useState<File | null>(null);
   const [genUrl, setGenUrl] = useState("");
+  const [genImageBlob, setGenImageBlob] = useState<Blob | null>(null);
+  const [genImagePreview, setGenImagePreview] = useState<string | null>(null);
   const [genCategoryMode, setGenCategoryMode] = useState<"existing" | "new">("existing");
   const [genCategoryId, setGenCategoryId] = useState("");
   const [genNewName, setGenNewName] = useState("");
   const [genCount, setGenCount] = useState(10);
+  const [genLanguage, setGenLanguage] = useState<"he" | "en">("he");
   const [generating, setGenerating] = useState(false);
   const [genResult, setGenResult] = useState<{ ok: boolean; message: string } | null>(null);
   const [reviewQuestions, setReviewQuestions] = useState<Question[] | null>(null);
@@ -257,6 +260,9 @@ export default function TriviaAdminPage() {
     setGenCategoryId(categories[0]?.id ?? "");
     setGenNewName("");
     setGenCount(10);
+    setGenLanguage("he");
+    setGenImageBlob(null);
+    setGenImagePreview(null);
     setGenResult(null);
     setReviewQuestions(null);
     setReviewCategoryId("");
@@ -272,8 +278,11 @@ export default function TriviaAdminPage() {
       fd.append("file", genFile);
     } else if (genInputMode === "url" && genUrl.trim()) {
       fd.append("url", genUrl.trim());
+    } else if (genInputMode === "image" && genImageBlob) {
+      fd.append("imageFile", genImageBlob, "clipboard.png");
     } else return;
     fd.append("questionCount", String(genCount));
+    fd.append("language", genLanguage);
     if (genCategoryMode === "existing") {
       fd.append("categoryId", genCategoryId);
     } else {
@@ -438,6 +447,12 @@ export default function TriviaAdminPage() {
               >
                 <Link className="h-4 w-4" /> קישור
               </button>
+              <button
+                className={`flex-1 flex items-center justify-center gap-2 py-1.5 rounded-md text-sm font-medium transition-colors ${genInputMode === "image" ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                onClick={() => setGenInputMode("image")}
+              >
+                <Clipboard className="h-4 w-4" /> תמונה
+              </button>
             </div>
 
             {/* File upload */}
@@ -462,6 +477,67 @@ export default function TriviaAdminPage() {
                     onChange={(e) => setGenFile(e.target.files?.[0] ?? null)}
                   />
                 </div>
+              </div>
+            )}
+
+            {/* Image paste */}
+            {genInputMode === "image" && (
+              <div>
+                <Label>הדבק תמונה מהקליפבורד</Label>
+                {genImagePreview ? (
+                  <div className="mt-1 relative">
+                    <img src={genImagePreview} alt="תמונה שהודבקה" className="w-full rounded-lg border object-contain max-h-48" />
+                    <button
+                      className="absolute top-1 left-1 bg-background/80 rounded-full p-1 hover:bg-background shadow"
+                      onClick={() => { setGenImageBlob(null); setGenImagePreview(null); }}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ) : (
+                  <div
+                    className="mt-1 border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:border-primary transition-colors focus:outline-none focus:border-primary"
+                    tabIndex={0}
+                    onPaste={(e) => {
+                      const items = e.clipboardData?.items;
+                      if (!items) return;
+                      for (const item of Array.from(items)) {
+                        if (item.type.startsWith("image/")) {
+                          const blob = item.getAsFile();
+                          if (blob) {
+                            setGenImageBlob(blob);
+                            const reader = new FileReader();
+                            reader.onload = () => setGenImagePreview(reader.result as string);
+                            reader.readAsDataURL(blob);
+                          }
+                          break;
+                        }
+                      }
+                    }}
+                    onClick={async () => {
+                      try {
+                        const items = await navigator.clipboard.read();
+                        for (const item of items) {
+                          const imageType = item.types.find((t) => t.startsWith("image/"));
+                          if (imageType) {
+                            const blob = await item.getType(imageType);
+                            setGenImageBlob(blob);
+                            const reader = new FileReader();
+                            reader.onload = () => setGenImagePreview(reader.result as string);
+                            reader.readAsDataURL(blob);
+                            break;
+                          }
+                        }
+                      } catch {
+                        // Clipboard read blocked — user should paste with Ctrl+V
+                      }
+                    }}
+                  >
+                    <Clipboard className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground">לחץ כאן ואז הדבק עם Ctrl+V</p>
+                    <p className="text-xs text-muted-foreground mt-1">תמונת מצגת, צילום מסך, סריקה וכד׳</p>
+                  </div>
+                )}
               </div>
             )}
 
@@ -518,6 +594,27 @@ export default function TriviaAdminPage() {
                   onChange={(e) => setGenNewName(e.target.value)}
                 />
               )}
+            </div>
+
+            {/* Language */}
+            <div>
+              <Label>שפת השאלות</Label>
+              <div className="flex gap-2 mt-1">
+                <Button
+                  size="sm"
+                  variant={genLanguage === "he" ? "default" : "outline"}
+                  onClick={() => setGenLanguage("he")}
+                >
+                  עברית
+                </Button>
+                <Button
+                  size="sm"
+                  variant={genLanguage === "en" ? "default" : "outline"}
+                  onClick={() => setGenLanguage("en")}
+                >
+                  English
+                </Button>
+              </div>
             </div>
 
             {/* Question count */}
@@ -595,6 +692,7 @@ export default function TriviaAdminPage() {
                   generating ||
                   (genInputMode === "file" && !genFile) ||
                   (genInputMode === "url" && !genUrl.trim()) ||
+                  (genInputMode === "image" && !genImageBlob) ||
                   (genCategoryMode === "existing" && !genCategoryId) ||
                   (genCategoryMode === "new" && !genNewName.trim())
                 }

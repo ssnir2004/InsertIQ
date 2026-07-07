@@ -20,31 +20,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               InsertIQ
             </Link>
             <div className="flex items-center gap-4 text-sm">
-              <Link href="/admin/grades" className="text-muted-foreground hover:text-foreground transition-colors">
-                גריידים
-              </Link>
-              <Link href="/admin/inserts" className="text-muted-foreground hover:text-foreground transition-colors">
-                שימות
-              </Link>
-              <Link href="/admin/import" className="text-muted-foreground hover:text-foreground transition-colors">
-                ייבוא CSV
-              </Link>
-              <span className="text-border">|</span>
-              <Link href="/learn/quiz" className="text-muted-foreground hover:text-foreground transition-colors">
-                חידון
-              </Link>
-              <Link href="/learn/flashcards" className="text-muted-foreground hover:text-foreground transition-colors">
-                כרטיסיות
-              </Link>
-              <Link href="/learn/match" className="text-muted-foreground hover:text-foreground transition-colors">
-                התאמה
-              </Link>
-              <span className="text-border">|</span>
               <Link href="/trivia" className="text-muted-foreground hover:text-foreground transition-colors font-medium">
                 טריוויה
               </Link>
               <Link href="/admin/trivia" className="text-muted-foreground hover:text-foreground transition-colors">
-                ניהול טריוויה
+                ניהול
               </Link>
             </div>
           </div>
